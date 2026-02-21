@@ -28,7 +28,7 @@ io.on("connection", (socket) => {
 const PORT = Number(process.env.PORT) || 3000;
 const SCRIPT_URL =
   process.env.SCRIPT_URL ||
-  "https://script.google.com/macros/s/AKfycbz5lXkrFJ7HDsz8LV_JIs-YwoXY0p0BuAhXZWBFxSf2XGfSu2vPbbUT5SA5y88duOakpw/exec";
+  "https://script.google.com/macros/s/AKfycbw-ZCdZgsuYb4HFNibKdZIVawNbhN6ZrNRmpRY_vUf8y8F0GMQC5USJiltywcBxvrG7AQ/exec";
 
 /* ---------------- HEALTH ---------------- */
 
