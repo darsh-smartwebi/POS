@@ -15,12 +15,8 @@ const io = new Server(server, {
 /* ---------------- CONFIG ---------------- */
 
 const PORT = Number(process.env.PORT) || 3000;
-const SCRIPT_URL_1 =
-  process.env.SCRIPT_URL_1 ||
-  "https://script.google.com/macros/s/AKfycbwjHOLRybb6dp3p9ZWls8KRzFeNn6ljlcL_aAzfiB8_eTSlqxBpNue45Us6x_Tjt_krvw/exec";
-const SCRIPT_URL_2 =
-  process.env.SCRIPT_URL_2 ||
-  "https://script.google.com/macros/s/AKfycbxuQ9B3keBThFQQVnp2QCFvVrxlTmtzIxYqOvLQ8OrkV6_7VxMljnYzZ-yvitNyq0iK/exec";
+const SCRIPT_URL_1 = process.env.SCRIPT_URL_1;
+const SCRIPT_URL_2 = process.env.SCRIPT_URL_2;
 
 /* ---------------- CACHE ---------------- */
 
