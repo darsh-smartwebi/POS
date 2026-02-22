@@ -6,109 +6,119 @@ import { Server } from "socket.io";
 const app = express();
 app.use(cors());
 
-/* ---------------- SOCKET SERVER ---------------- */
-
 const server = http.createServer(app);
 
 const io = new Server(server, {
-  cors: { origin: "*" }, // change later
-});
-
-/* client connect */
-io.on("connection", (socket) => {
-  console.log("Client connected:", socket.id);
-
-  socket.on("disconnect", () => {
-    console.log("Client disconnected:", socket.id);
-  });
+  cors: { origin: "*" },
 });
 
 /* ---------------- CONFIG ---------------- */
 
 const PORT = Number(process.env.PORT) || 3000;
-const SCRIPT_URL = process.env.SCRIPT_URL;
+const SCRIPT_URL_1 =
+  process.env.SCRIPT_URL_1 ||
+  "https://script.google.com/macros/s/AKfycbwjHOLRybb6dp3p9ZWls8KRzFeNn6ljlcL_aAzfiB8_eTSlqxBpNue45Us6x_Tjt_krvw/exec";
+const SCRIPT_URL_2 =
+  process.env.SCRIPT_URL_2 ||
+  "https://script.google.com/macros/s/AKfycbxuQ9B3keBThFQQVnp2QCFvVrxlTmtzIxYqOvLQ8OrkV6_7VxMljnYzZ-yvitNyq0iK/exec";
 
-/* ---------------- HEALTH ---------------- */
+/* ---------------- CACHE ---------------- */
 
-app.get("/health", (req, res) => res.json({ ok: true }));
+let cachedOrders = [];
+let lastSnapshot = null;
 
-/* ---------------- FETCH FUNCTION ---------------- */
+/* ---------------- FETCH ---------------- */
 
-async function fetchOrders() {
-  const r = await fetch(SCRIPT_URL, {
+async function fetchFromUrl(url) {
+  const r = await fetch(url, {
     headers: { Accept: "application/json" },
   });
-
   return await r.json();
 }
 
-/* ---------------- REALTIME WATCHER ---------------- */
+async function fetchAllOrders() {
+  const [data1, data2] = await Promise.all([
+    fetchFromUrl(SCRIPT_URL_1),
+    fetchFromUrl(SCRIPT_URL_2),
+  ]);
 
-/*
-We compare last data snapshot.
-If different → emit socket event
-*/
-let lastSnapshot = null;
-
-function isChanged(newData) {
-  const newHash = JSON.stringify(newData);
-  const changed = newHash !== lastSnapshot;
-  lastSnapshot = newHash;
-  return changed;
+  return [...data1, ...data2];
 }
+
+/* ---------------- WATCHER ---------------- */
 
 async function watchOrders() {
   try {
-    const data = await fetchOrders();
+    const data = await fetchAllOrders();
+    const newHash = JSON.stringify(data);
 
     if (!lastSnapshot) {
-      lastSnapshot = JSON.stringify(data);
+      cachedOrders = data;
+      lastSnapshot = newHash;
       return;
     }
 
-    if (isChanged(data)) {
+    if (newHash !== lastSnapshot) {
       console.log("Orders changed → pushing to clients");
 
-      io.emit("orders:update", data);
+      cachedOrders = data;
+      lastSnapshot = newHash;
+
+      io.emit("orders:update", cachedOrders);
     }
   } catch (err) {
     console.log("Watcher error:", err.message);
   }
 }
 
-/* check every 5 seconds */
 setInterval(watchOrders, 5000);
 
-/* ---------------- ROUTES ---------------- */
+/* ---------------- SOCKET ---------------- */
 
-app.get("/api/orders", async (req, res) => {
-  try {
-    const data = await fetchOrders();
-    res.json(data);
-  } catch (e) {
-    res.status(500).json({ error: e.message });
-  }
-});
+io.on("connection", (socket) => {
+  console.log("Client connected:", socket.id);
 
-app.get("/api/filter", async (req, res) => {
-  try {
-    const { order_id } = req.query;
+  // Send current cache immediately
+  socket.emit("orders:update", cachedOrders);
 
-    if (!order_id)
-      return res.status(400).json({ error: "order_id is required" });
-
-    const data = await fetchOrders();
-
-    const record = data.find(
+  // Filter via socket
+  socket.on("orders:filter", (order_id) => {
+    const record = cachedOrders.find(
       (order) => String(order.order_id) === String(order_id),
     );
 
-    if (!record) return res.status(404).json({ error: "Order not found" });
+    if (record) {
+      socket.emit("orders:filterResult", record);
+    } else {
+      socket.emit("orders:filterResult", { error: "Order not found" });
+    }
+  });
 
-    res.json(record);
-  } catch (e) {
-    res.status(500).json({ error: e.message });
-  }
+  socket.on("disconnect", () => {
+    console.log("Client disconnected:", socket.id);
+  });
+});
+
+/* ---------------- ROUTES ---------------- */
+
+app.get("/health", (req, res) => res.json({ ok: true }));
+
+app.get("/api/orders", (req, res) => {
+  res.json(cachedOrders);
+});
+
+app.get("/api/filter", (req, res) => {
+  const { order_id } = req.query;
+
+  if (!order_id) return res.status(400).json({ error: "order_id is required" });
+
+  const record = cachedOrders.find(
+    (order) => String(order.order_id) === String(order_id),
+  );
+
+  if (!record) return res.status(404).json({ error: "Order not found" });
+
+  res.json(record);
 });
 
 /* ---------------- START ---------------- */
