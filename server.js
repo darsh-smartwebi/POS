@@ -46,10 +46,15 @@ async function fetchAllOrders() {
 async function watchOrders() {
   try {
     const data = await fetchAllOrders();
-    const newHash = JSON.stringify(data);
+
+    const sortedData = data.sort(
+      (a, b) => new Date(b.timestamp) - new Date(a.timestamp),
+    );
+
+    const newHash = JSON.stringify(sortedData);
 
     if (!lastSnapshot) {
-      cachedOrders = data;
+      cachedOrders = sortedData;
       lastSnapshot = newHash;
       return;
     }
@@ -57,7 +62,7 @@ async function watchOrders() {
     if (newHash !== lastSnapshot) {
       console.log("Orders changed → pushing to clients");
 
-      cachedOrders = data;
+      cachedOrders = sortedData;
       lastSnapshot = newHash;
 
       io.emit("orders:update", cachedOrders);
@@ -74,7 +79,7 @@ setInterval(watchOrders, 5000);
 io.on("connection", (socket) => {
   console.log("Client connected:", socket.id);
 
-  // Send current cache immediately
+  // Send current sorted cache immediately
   socket.emit("orders:update", cachedOrders);
 
   // Filter via socket
