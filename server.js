@@ -130,7 +130,7 @@ app.get("/api/filter", async (req, res) => {
     const { id } = req.query;
     if (!id) return res.status(400).json({ error: "Order ID is required" });
 
-    const record = await fetchOrderById(id);
+    const record = await fetchOrderByOrderId(id);
 
     if (!record) return res.status(404).json({ error: "Order not found" });
 
