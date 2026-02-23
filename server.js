@@ -27,7 +27,7 @@ let lastSnapshot = null;
 
 async function fetchOrdersFromDb() {
   const [rows] = await db.execute(
-    "SELECT * FROM orders WHERE isActive = 1 ORDER BY timestamp DESC"
+    "SELECT * FROM orders WHERE isActive = 1 ORDER BY timestamp DESC",
   );
   return rows;
 }
@@ -35,7 +35,7 @@ async function fetchOrdersFromDb() {
 async function fetchOrderByOrderId(id) {
   const [rows] = await db.execute(
     "SELECT * FROM orders WHERE iorder_id = ? AND isActive = 1 LIMIT 1",
-    [id]
+    [id],
   );
   return rows[0] || null;
 }
@@ -47,7 +47,9 @@ async function watchOrders() {
     const rows = await fetchOrdersFromDb();
 
     // Make a stable signature so watcher triggers reliably
-    const signature = rows.map((o) => `${o.order_id}|${o.timestamp}`).join("||");
+    const signature = rows
+      .map((o) => `${o.order_id}|${o.timestamp}`)
+      .join("||");
 
     if (!lastSnapshot) {
       cachedOrders = rows;
@@ -86,7 +88,7 @@ io.on("connection", (socket) => {
 
       const [rows] = await db.execute(
         "SELECT * FROM orders WHERE order_id = ? AND isActive = 1 LIMIT 1",
-        [order_id]
+        [order_id],
       );
 
       if (rows.length) socket.emit("orders:filterResult", rows[0]);
@@ -113,7 +115,7 @@ app.get("/api/orders", async (req, res) => {
 
     const [rows] = await db.execute(
       "SELECT * FROM orders WHERE isActive = ? ORDER BY timestamp DESC",
-      [activeValue]
+      [activeValue],
     );
 
     res.json(rows);
@@ -141,6 +143,8 @@ app.get("/api/filter", async (req, res) => {
 
 app.post("/api/orders", async (req, res) => {
   try {
+    console.log(req.body);
+    
     const {
       customer_name,
       phone,
@@ -151,30 +155,29 @@ app.post("/api/orders", async (req, res) => {
 
     const [result] = await db.execute(
       `INSERT INTO orders
-      (customer_name, phone, table_number, items_ordered, special_instructions, isActive)
-      VALUES (?, ?, ?, ?, ?, 1)`,
+   (customer_name, phone, table_number, items_ordered, special_instructions, isActive)
+   VALUES (?, ?, ?, ?, ?, 1)`,
       [
-        customer_name,
-        phone,
-        table_number,
-        items_ordered,
-        special_instructions,
-      ]
+        customer_name ?? null,
+        phone ?? null,
+        table_number ?? null,
+        items_ordered ?? null,
+        special_instructions ?? null,
+      ],
     );
 
     const insertedId = result.insertId;
 
     const generatedOrderId = `ORD-${String(insertedId).padStart(4, "0")}`;
 
-    await db.execute(
-      `UPDATE orders SET order_id = ? WHERE id = ?`,
-      [generatedOrderId, insertedId]
-    );
+    await db.execute(`UPDATE orders SET order_id = ? WHERE id = ?`, [
+      generatedOrderId,
+      insertedId,
+    ]);
 
-    const [rows] = await db.execute(
-      "SELECT * FROM orders WHERE id = ?",
-      [insertedId]
-    );
+    const [rows] = await db.execute("SELECT * FROM orders WHERE id = ?", [
+      insertedId,
+    ]);
 
     const newOrder = rows[0];
 
