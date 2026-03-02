@@ -32,11 +32,18 @@ async function fetchOrdersFromDb() {
   return rows;
 }
 
-async function fetchOrderByOrderId(id) {
-  const [rows] = await db.execute(
-    "SELECT * FROM orders WHERE iorder_id = ? AND isActive = 1 LIMIT 1",
-    [id],
-  );
+async function fetchOrderByOrderId(id, isActive) {
+  let query = "SELECT * FROM orders WHERE order_id = ?";
+  const params = [id];
+
+  if (isActive !== undefined) {
+    query += " AND isActive = ?";
+    params.push(isActive);
+  }
+
+  query += " LIMIT 1";
+
+  const [rows] = await db.execute(query, params);
   return rows[0] || null;
 }
 
@@ -127,14 +134,32 @@ app.get("/api/orders", async (req, res) => {
 
 app.get("/api/filter", async (req, res) => {
   try {
-    const { id } = req.query;
-    if (!id) return res.status(400).json({ error: "Order ID is required" });
+    const { id, isActive } = req.query;
 
-    const record = await fetchOrderByOrderId(id);
+    if (!id) {
+      return res.status(400).json({ error: "Order ID is required" });
+    }
 
-    if (!record) return res.status(404).json({ error: "Order not found" });
+    let activeValue;
+
+    if (isActive !== undefined) {
+      if (isActive === "true" || isActive === "1") {
+        activeValue = 1;
+      } else if (isActive === "false" || isActive === "0") {
+        activeValue = 0;
+      } else {
+        return res.status(400).json({ error: "Invalid isActive value" });
+      }
+    }
+
+    const record = await fetchOrderByOrderId(id, activeValue);
+
+    if (!record) {
+      return res.status(404).json({ error: "Order not found" });
+    }
 
     res.json(record);
+
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Failed to fetch order" });
