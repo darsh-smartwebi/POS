@@ -47,13 +47,34 @@ async function fetchOrderByOrderId(id, isActive) {
   return rows[0] || null;
 }
 
+async function upsertCustomerFromOrder(conn, order) {
+  const phone = order?.phone;
+  if (!phone) return;
+
+  const name = order?.customer_name ?? null;
+  const lastOrderTime = order?.timestamp ?? new Date();
+  const lastOrderId = order?.order_id ?? null;
+
+  await conn.execute(
+    `
+    INSERT INTO customers (full_name, phone, total_visits, last_order, last_order_id)
+    VALUES (?, ?, 1, ?, ?)
+    ON DUPLICATE KEY UPDATE
+      total_visits = total_visits + 1,
+      last_order = VALUES(last_order),
+      last_order_id = VALUES(last_order_id),
+      full_name = COALESCE(VALUES(full_name), full_name)
+    `,
+    [name, phone, lastOrderTime, lastOrderId],
+  );
+}
+
 /* ---------------- WATCHER ---------------- */
 
 async function watchOrders() {
   try {
     const rows = await fetchOrdersFromDb();
 
-    // Make a stable signature so watcher triggers reliably
     const signature = rows
       .map((o) => `${o.order_id}|${o.timestamp}`)
       .join("||");
@@ -101,7 +122,7 @@ io.on("connection", (socket) => {
       if (rows.length) socket.emit("orders:filterResult", rows[0]);
       else socket.emit("orders:filterResult", { error: "Order not found" });
     } catch (err) {
-      console.error("Socket filter error:", err); // 👈 IMPORTANT
+      console.error("Socket filter error:", err);
       socket.emit("orders:filterResult", { error: "Server error" });
     }
   });
@@ -216,23 +237,76 @@ app.post("/api/orders", async (req, res) => {
 });
 
 app.put("/api/orders/:id/deactivate", async (req, res) => {
+  const conn = await db.getConnection();
   try {
     const { id } = req.params;
 
-    await db.execute("UPDATE orders SET isActive = 0 WHERE id = ?", [id]);
+    await conn.beginTransaction();
+
+    const [rows] = await conn.execute(
+      "SELECT * FROM orders WHERE id = ? LIMIT 1",
+      [id],
+    );
+
+    if (!rows.length) {
+      await conn.rollback();
+      return res.status(404).json({ error: "Order not found" });
+    }
+
+    const order = rows[0];
+
+    await conn.execute("UPDATE orders SET isActive = 0 WHERE id = ?", [id]);
+
+    await upsertCustomerFromOrder(conn, order);
+
+    await conn.commit();
 
     cachedOrders = cachedOrders.filter((o) => String(o.id) !== String(id));
     io.emit("orders:update", cachedOrders);
 
-    // update snapshot
     lastSnapshot = cachedOrders
       .map((o) => `${o.order_id}|${o.timestamp}`)
       .join("||");
 
-    res.json({ message: "Order deactivated" });
+    res.json({ message: "Order deactivated and customer updated" });
   } catch (err) {
+    await conn.rollback();
     console.error(err);
     res.status(500).json({ error: "Failed to deactivate order" });
+  } finally {
+    conn.release();
+  }
+});
+
+app.get("/api/customers", async (req, res) => {
+  try {
+    const { search, sort = "desc" } = req.query;
+
+    let query = `
+      SELECT id, full_name, phone, total_visits, last_order, last_order_id
+      FROM customers
+    `;
+
+    const params = [];
+
+    // Optional search by name or phone
+    if (search) {
+      query += `
+        WHERE full_name LIKE ?
+        OR phone LIKE ?
+      `;
+      params.push(`%${search}%`, `%${search}%`);
+    }
+
+    query += ` ORDER BY last_order ${sort === "asc" ? "ASC" : "DESC"}`;
+
+    const [rows] = await db.execute(query, params);
+
+    res.json(rows);
+
+  } catch (err) {
+    console.error("Fetch customers error:", err);
+    res.status(500).json({ error: "Failed to fetch customers" });
   }
 });
 
