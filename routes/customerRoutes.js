@@ -1,0 +1,36 @@
+import express from "express";
+import db from "../db.js";
+
+const router = express.Router();
+
+router.get("/customers", async (req, res) => {
+  try {
+    const { search, sort = "desc" } = req.query;
+
+    let query = `
+      SELECT id, full_name, phone, total_visits, last_order, last_order_id
+      FROM customers
+    `;
+
+    const params = [];
+
+    if (search) {
+      query += `
+        WHERE full_name LIKE ?
+        OR phone LIKE ?
+      `;
+      params.push(`%${search}%`, `%${search}%`);
+    }
+
+    query += ` ORDER BY last_order ${sort === "asc" ? "ASC" : "DESC"}`;
+
+    const [rows] = await db.execute(query, params);
+
+    res.json(rows);
+  } catch (err) {
+    console.error("Fetch customers error:", err);
+    res.status(500).json({ error: "Failed to fetch customers" });
+  }
+});
+
+export default router;
