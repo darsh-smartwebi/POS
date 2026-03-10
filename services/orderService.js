@@ -11,7 +11,7 @@ export async function fetchOrdersByActive(isActive, orgId) {
   let query = "SELECT * FROM orders WHERE isActive = ?";
   const params = [isActive];
 
-  if (orgId !== undefined) {
+  if (orgId !== undefined && orgId !== null && orgId !== "") {
     query += " AND orgId = ?";
     params.push(orgId);
   }
