@@ -76,7 +76,12 @@ router.delete("/users/:id", async (req, res) => {
 
 router.get("/api/users/by-email", async (req, res) => {
   try {
-    const { email, orgId } = req.query;
+    const email = req.query.email?.trim();
+    const orgId = req.query.orgId;
+
+    console.log("req.query:", req.query);
+    console.log("email:", `[${email}]`);
+    console.log("orgId:", orgId);
 
     if (!email) {
       return res.status(400).json({
@@ -84,17 +89,26 @@ router.get("/api/users/by-email", async (req, res) => {
       });
     }
 
-    let query = `SELECT * FROM pos_users WHERE email = ?`;
+    let query = `
+      SELECT *
+      FROM pos_users
+      WHERE TRIM(LOWER(email)) = TRIM(LOWER(?))
+    `;
     const params = [email];
 
-    if (orgId) {
+    if (orgId !== undefined && orgId !== null && orgId !== "") {
       query += " AND orgId = ?";
       params.push(orgId);
     }
 
     query += " LIMIT 1";
 
+    console.log("query:", query);
+    console.log("params:", params);
+
     const [rows] = await db.execute(query, params);
+
+    console.log("rows found:", rows.length);
 
     if (!rows.length) {
       return res.status(404).json({
