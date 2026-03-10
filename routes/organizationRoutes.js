@@ -43,6 +43,30 @@ router.get("/getAllOrganization", async (req, res) => {
   }
 });
 
+router.get("/getOrganizationById", async (req, res) => {
+  try {
+    const { id } = req.query;
+
+    if (!id) {
+      return res.status(400).json({ error: "Organization id is required" });
+    }
+
+    const [rows] = await db.execute(
+      "SELECT * FROM pos_organization WHERE id = ?",
+      [id]
+    );
+
+    if (rows.length === 0) {
+      return res.status(404).json({ error: "Organization not found" });
+    }
+
+    res.status(200).json(rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to fetch organization" });
+  }
+});
+
 router.get("/activeOrganization", async (req, res) => {
   try {
     const [rows] = await db.execute(
