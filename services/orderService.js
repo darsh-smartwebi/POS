@@ -12,7 +12,7 @@ export async function fetchOrdersByActive(isActive, orgId) {
   const params = [isActive];
 
   if (orgId !== undefined && orgId !== null && orgId !== "") {
-    query += " AND orgId = ?";
+    query += " AND org_id = ?";
     params.push(orgId);
   }
 
