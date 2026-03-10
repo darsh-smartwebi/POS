@@ -76,36 +76,37 @@ router.delete("/users/:id", async (req, res) => {
 
 router.get("/api/users/by-email", async (req, res) => {
   try {
-    const { email } = req.query;
+    const { email, orgId } = req.query;
 
-    if (!email || !orgId) {
+    if (!email) {
       return res.status(400).json({
-        error: "email is required"
+        error: "email is required",
       });
     }
 
-    const [rows] = await db.execute(
-      `
-      SELECT *
-      FROM pos_users
-      WHERE email = ?
-      LIMIT 1
-      `,
-      [email]
-    );
+    let query = `SELECT * FROM pos_users WHERE email = ?`;
+    const params = [email];
+
+    if (orgId) {
+      query += " AND orgId = ?";
+      params.push(orgId);
+    }
+
+    query += " LIMIT 1";
+
+    const [rows] = await db.execute(query, params);
 
     if (!rows.length) {
       return res.status(404).json({
-        error: "User not found"
+        error: "User not found",
       });
     }
 
     res.json(rows[0]);
-
   } catch (err) {
     console.error(err);
     res.status(500).json({
-      error: "Failed to fetch user"
+      error: "Failed to fetch user",
     });
   }
 });
