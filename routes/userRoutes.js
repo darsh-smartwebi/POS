@@ -76,11 +76,11 @@ router.delete("/users/:id", async (req, res) => {
 
 router.get("/api/users/by-email", async (req, res) => {
   try {
-    const { email, orgId } = req.query;
+    const { email } = req.query;
 
     if (!email || !orgId) {
       return res.status(400).json({
-        error: "email and orgId are required"
+        error: "email is required"
       });
     }
 
@@ -89,10 +89,9 @@ router.get("/api/users/by-email", async (req, res) => {
       SELECT *
       FROM pos_users
       WHERE email = ?
-      AND org_id = ?
       LIMIT 1
       `,
-      [email, orgId]
+      [email]
     );
 
     if (!rows.length) {
