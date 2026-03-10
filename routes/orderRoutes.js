@@ -18,10 +18,10 @@ export default function orderRoutes(io) {
 
   router.get("/orders", async (req, res) => {
     try {
-      const { isActive } = req.query;
+      const { isActive, orgId } = req.query;
       const activeValue = isActive === "0" ? 0 : 1;
 
-      const rows = await fetchOrdersByActive(activeValue);
+      const rows = await fetchOrdersByActive(activeValue, orgId);
       res.json(rows);
     } catch (err) {
       console.error(err);
@@ -70,13 +70,14 @@ export default function orderRoutes(io) {
         table_number,
         items_ordered,
         special_instructions,
+        org_id,
       } = req.body;
 
       const [result] = await db.execute(
         `
         INSERT INTO orders
-        (customer_name, phone, table_number, items_ordered, special_instructions, isActive)
-        VALUES (?, ?, ?, ?, ?, 1)
+        (customer_name, phone, table_number, items_ordered, special_instructions, isActive,org_id)
+        VALUES (?, ?, ?, ?, ?, 1,?)
         `,
         [
           customer_name ?? null,
@@ -84,6 +85,7 @@ export default function orderRoutes(io) {
           table_number ?? null,
           items_ordered ?? null,
           special_instructions ?? null,
+          org_id ?? null,
         ],
       );
 
