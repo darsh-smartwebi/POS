@@ -2,6 +2,7 @@ import express from "express";
 import {
   createUserAfterValidation,
   getAllUsers,
+  getUserByEmail,
   getUserById,
   updateUser,
   deleteUser,
@@ -25,6 +26,28 @@ router.get("/users", async (req, res) => {
     return res.json(users);
   } catch (error) {
     console.error("get all users error:", error);
+    return res.status(500).json({ error: error.message });
+  }
+});
+
+router.get("/users/by-email", async (req, res) => {
+  try {
+    const email = req.query.email?.trim();
+    const orgId = req.query.orgId;
+
+    if (!email) {
+      return res.status(400).json({ error: "email is required" });
+    }
+
+    const user = await getUserByEmail(email, orgId);
+
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    return res.json(user);
+  } catch (error) {
+    console.error("get user by email error:", error);
     return res.status(500).json({ error: error.message });
   }
 });
@@ -71,57 +94,6 @@ router.delete("/users/:id", async (req, res) => {
   } catch (error) {
     console.error("delete user error:", error);
     return res.status(500).json({ error: error.message });
-  }
-});
-
-router.get("/users/by-email", async (req, res) => {
-  try {
-    const email = req.query.email?.trim();
-    const orgId = req.query.orgId;
-
-    console.log("req.query:", req.query);
-    console.log("email:", `[${email}]`);
-    console.log("orgId:", orgId);
-
-    if (!email) {
-      return res.status(400).json({
-        error: "email is required",
-      });
-    }
-
-    let query = `
-      SELECT *
-      FROM pos_users
-      WHERE TRIM(LOWER(email)) = TRIM(LOWER(?))
-    `;
-    const params = [email];
-
-    if (orgId !== undefined && orgId !== null && orgId !== "") {
-      query += " AND orgId = ?";
-      params.push(orgId);
-    }
-
-    query += " LIMIT 1";
-
-    console.log("query:", query);
-    console.log("params:", params);
-
-    const [rows] = await db.execute(query, params);
-
-    console.log("rows found:", rows.length);
-
-    if (!rows.length) {
-      return res.status(404).json({
-        error: "User not found",
-      });
-    }
-
-    res.json(rows[0]);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({
-      error: "Failed to fetch user",
-    });
   }
 });
 
