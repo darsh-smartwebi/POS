@@ -74,7 +74,7 @@ router.delete("/users/:id", async (req, res) => {
   }
 });
 
-router.get("/api/users/by-email", async (req, res) => {
+router.get("/users/by-email", async (req, res) => {
   try {
     const email = req.query.email?.trim();
     const orgId = req.query.orgId;
