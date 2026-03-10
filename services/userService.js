@@ -162,3 +162,22 @@ export async function createUserAfterValidation(user) {
     };
   }
 }
+
+export async function getUserByEmail(email, orgId) {
+  let query = `
+    SELECT *
+    FROM pos_users
+    WHERE TRIM(LOWER(email)) = TRIM(LOWER(?))
+  `;
+  const params = [email];
+
+  if (orgId !== undefined && orgId !== null && orgId !== "") {
+    query += " AND orgId = ?";
+    params.push(orgId);
+  }
+
+  query += " LIMIT 1";
+
+  const [rows] = await db.execute(query, params);
+  return rows[0] || null;
+}
