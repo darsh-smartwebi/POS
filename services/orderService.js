@@ -2,16 +2,23 @@ import db from "../db.js";
 
 export async function fetchOrdersFromDb() {
   const [rows] = await db.execute(
-    "SELECT * FROM orders WHERE isActive = 1 ORDER BY timestamp DESC"
+    "SELECT * FROM orders WHERE isActive = 1 ORDER BY timestamp DESC",
   );
   return rows;
 }
 
-export async function fetchOrdersByActive(isActive = 1) {
-  const [rows] = await db.execute(
-    "SELECT * FROM orders WHERE isActive = ? ORDER BY timestamp DESC",
-    [isActive]
-  );
+export async function fetchOrdersByActive(isActive, orgId) {
+  let query = "SELECT * FROM orders WHERE isActive = ?";
+  const params = [isActive];
+
+  if (orgId !== undefined) {
+    query += " AND orgId = ?";
+    params.push(orgId);
+  }
+
+  query += " ORDER BY timestamp DESC";
+
+  const [rows] = await db.execute(query, params);
   return rows;
 }
 
@@ -48,6 +55,6 @@ export async function upsertCustomerFromOrder(conn, order) {
       last_order_id = VALUES(last_order_id),
       full_name = COALESCE(VALUES(full_name), full_name)
     `,
-    [name, phone, lastOrderTime, lastOrderId]
+    [name, phone, lastOrderTime, lastOrderId],
   );
 }

@@ -74,4 +74,41 @@ router.delete("/users/:id", async (req, res) => {
   }
 });
 
+router.get("/api/users/by-email", async (req, res) => {
+  try {
+    const { email, orgId } = req.query;
+
+    if (!email || !orgId) {
+      return res.status(400).json({
+        error: "email and orgId are required"
+      });
+    }
+
+    const [rows] = await db.execute(
+      `
+      SELECT *
+      FROM pos_users
+      WHERE email = ?
+      AND org_id = ?
+      LIMIT 1
+      `,
+      [email, orgId]
+    );
+
+    if (!rows.length) {
+      return res.status(404).json({
+        error: "User not found"
+      });
+    }
+
+    res.json(rows[0]);
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({
+      error: "Failed to fetch user"
+    });
+  }
+});
+
 export default router;
