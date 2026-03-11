@@ -6,6 +6,7 @@ import {
   getUserById,
   updateUser,
   deleteUser,
+  getUsersByOrgId,
 } from "../services/userService.js";
 
 const router = express.Router();
@@ -26,6 +27,23 @@ router.get("/users", async (req, res) => {
     return res.json(users);
   } catch (error) {
     console.error("get all users error:", error);
+    return res.status(500).json({ error: error.message });
+  }
+});
+
+router.get("/usersByOrgId", async (req, res) => {
+  try {
+    const { orgId } = req.query;
+
+    if (!orgId) {
+      return res.status(400).json({ error: "orgId is required" });
+    }
+
+    const users = await getUsersByOrgId(orgId);
+    return res.json(users);
+
+  } catch (error) {
+    console.error("get users by orgId error:", error);
     return res.status(500).json({ error: error.message });
   }
 });
