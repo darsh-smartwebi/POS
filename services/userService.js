@@ -184,7 +184,7 @@ export async function getUserByEmail(email, orgId) {
 
 export async function getUsersByOrgId(orgId) {
   const [rows] = await db.execute(
-    `SELECT * FROM users WHERE orgId = ?`,
+    `SELECT * FROM users WHERE org_id = ?`,
     [orgId]
   );
   return rows;
