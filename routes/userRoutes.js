@@ -13,6 +13,8 @@ const router = express.Router();
 
 router.post("/users", async (req, res) => {
   try {
+    req.body.orgId = req.body.orgId ?? req.query.orgId;
+
     const result = await createUserAfterValidation(req.body);
     return res.status(result.status).json(result.data);
   } catch (error) {
