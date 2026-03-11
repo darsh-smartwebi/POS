@@ -181,3 +181,11 @@ export async function getUserByEmail(email, orgId) {
   const [rows] = await db.execute(query, params);
   return rows[0] || null;
 }
+
+export async function getUsersByOrgId(orgId) {
+  const [rows] = await db.execute(
+    `SELECT * FROM users WHERE orgId = ?`,
+    [orgId]
+  );
+  return rows;
+}
