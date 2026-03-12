@@ -198,4 +198,36 @@ router.put("/organization/deactivate", async (req, res) => {
   }
 });
 
+router.get("/organizationByUserEmail", async (req, res) => {
+  try {
+    const { email } = req.query;
+
+    if (!email) {
+      return res.status(400).json({ error: "email is required" });
+    }
+
+    const [rows] = await db.execute(
+      `
+      SELECT o.*
+      FROM pos_users u
+      JOIN pos_organization o ON u.org_id = o.id
+      WHERE u.email = ?
+      LIMIT 1
+      `,
+      [email],
+    );
+
+    if (!rows.length) {
+      return res
+        .status(404)
+        .json({ error: "Organization not found for this user" });
+    }
+
+    res.status(200).json(rows[0]);
+  } catch (err) {
+    console.error("Find organization by email error:", err);
+    res.status(500).json({ error: "Failed to fetch organization" });
+  }
+});
+
 export default router;
