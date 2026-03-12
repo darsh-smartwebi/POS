@@ -5,7 +5,15 @@ const router = express.Router();
 
 router.post("/organization", async (req, res) => {
   try {
-    const { org_title, org_type, org_address, org_logo } = req.body;
+    const {
+      org_title,
+      org_type,
+      org_address,
+      org_logo,
+      org_preview_link,
+      org_embedcode,
+      org_qrcode,
+    } = req.body;
 
     if (!org_title || !org_title.trim()) {
       return res.status(400).json({ error: "org_title is required" });
@@ -14,20 +22,36 @@ router.post("/organization", async (req, res) => {
     const [result] = await db.execute(
       `
       INSERT INTO pos_organization
-      (org_title, org_type, org_address, org_logo)
-      VALUES (?, ?, ?, ?)
+      (
+        org_title,
+        org_type,
+        org_address,
+        org_logo,
+        org_preview_link,
+        org_embedcode,
+        org_qrcode
+      )
+      VALUES (?, ?, ?, ?, ?, ?, ?)
       `,
-      [org_title.trim(), org_type, org_address ?? null, org_logo ?? null]
+      [
+        org_title.trim(),
+        org_type ?? null,
+        org_address ?? null,
+        org_logo ?? null,
+        org_preview_link ?? null,
+        org_embedcode ?? null,
+        org_qrcode ?? null,
+      ],
     );
 
     const [rows] = await db.execute(
       `SELECT * FROM pos_organization WHERE id = ?`,
-      [result.insertId]
+      [result.insertId],
     );
 
-    res.status(200).json(rows[0]);
+    res.status(201).json(rows[0]);
   } catch (err) {
-    console.error(err);
+    console.error("Create organization error:", err);
     res.status(500).json({ error: "Failed to create organization" });
   }
 });
@@ -35,10 +59,11 @@ router.post("/organization", async (req, res) => {
 router.get("/getAllOrganization", async (req, res) => {
   try {
     const [rows] = await db.execute(
-      `SELECT * FROM pos_organization ORDER BY id DESC`
+      `SELECT * FROM pos_organization ORDER BY id DESC`,
     );
     res.status(200).json(rows);
   } catch (err) {
+    console.error("Get all organizations error:", err);
     res.status(500).json({ error: "Failed to fetch organizations" });
   }
 });
@@ -52,8 +77,8 @@ router.get("/getOrganizationById", async (req, res) => {
     }
 
     const [rows] = await db.execute(
-      "SELECT * FROM pos_organization WHERE id = ?",
-      [id]
+      `SELECT * FROM pos_organization WHERE id = ?`,
+      [id],
     );
 
     if (rows.length === 0) {
@@ -62,7 +87,7 @@ router.get("/getOrganizationById", async (req, res) => {
 
     res.status(200).json(rows[0]);
   } catch (err) {
-    console.error(err);
+    console.error("Get organization by id error:", err);
     res.status(500).json({ error: "Failed to fetch organization" });
   }
 });
@@ -74,10 +99,11 @@ router.get("/activeOrganization", async (req, res) => {
       SELECT * FROM pos_organization
       WHERE isActive = 1
       ORDER BY id DESC
-      `
+      `,
     );
-    res.json(rows);
+    res.status(200).json(rows);
   } catch (err) {
+    console.error("Get active organizations error:", err);
     res.status(500).json({ error: "Failed to fetch organizations" });
   }
 });
@@ -90,14 +116,22 @@ router.put("/organization", async (req, res) => {
       return res.status(400).json({ error: "Organization id is required" });
     }
 
-    const { org_title, org_type, org_address, org_logo } = req.body;
+    const {
+      org_title,
+      org_type,
+      org_address,
+      org_logo,
+      org_preview_link,
+      org_embedcode,
+      org_qrcode,
+    } = req.body;
 
     const [rows] = await db.execute(
       `SELECT * FROM pos_organization WHERE id = ?`,
-      [id]
+      [id],
     );
 
-    if (!rows.length) {
+    if (rows.length === 0) {
       return res.status(404).json({ error: "Organization not found" });
     }
 
@@ -106,7 +140,14 @@ router.put("/organization", async (req, res) => {
     await db.execute(
       `
       UPDATE pos_organization
-      SET org_title = ?, org_type = ?, org_address = ?, org_logo = ?
+      SET
+        org_title = ?,
+        org_type = ?,
+        org_address = ?,
+        org_logo = ?,
+        org_preview_link = ?,
+        org_embedcode = ?,
+        org_qrcode = ?
       WHERE id = ?
       `,
       [
@@ -114,18 +155,21 @@ router.put("/organization", async (req, res) => {
         org_type ?? existing.org_type,
         org_address ?? existing.org_address,
         org_logo ?? existing.org_logo,
+        org_preview_link ?? existing.org_preview_link,
+        org_embedcode ?? existing.org_embedcode,
+        org_qrcode ?? existing.org_qrcode,
         id,
-      ]
+      ],
     );
 
     const [updated] = await db.execute(
       `SELECT * FROM pos_organization WHERE id = ?`,
-      [id]
+      [id],
     );
 
     res.status(200).json(updated[0]);
   } catch (err) {
-    console.error(err);
+    console.error("Update organization error:", err);
     res.status(500).json({ error: "Failed to update organization" });
   }
 });
@@ -138,13 +182,18 @@ router.put("/organization/deactivate", async (req, res) => {
       return res.status(400).json({ error: "Organization id is required" });
     }
 
-    await db.execute(`UPDATE pos_organization SET isActive = 0 WHERE id = ?`, [
-      id,
-    ]);
+    const [result] = await db.execute(
+      `UPDATE pos_organization SET isActive = 0 WHERE id = ?`,
+      [id],
+    );
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ error: "Organization not found" });
+    }
 
     res.status(200).json({ message: "Organization deactivated" });
   } catch (err) {
-    console.error(err);
+    console.error("Deactivate organization error:", err);
     res.status(500).json({ error: "Failed to deactivate organization" });
   }
 });
