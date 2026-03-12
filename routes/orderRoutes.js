@@ -63,7 +63,11 @@ export default function orderRoutes(io) {
   });
 
   router.post("/orders", async (req, res) => {
+    const connection = await db.getConnection();
+
     try {
+      await connection.beginTransaction();
+
       const {
         customer_name,
         phone,
@@ -73,33 +77,73 @@ export default function orderRoutes(io) {
         org_id,
       } = req.body;
 
-      const [result] = await db.execute(
+      if (org_id == null) {
+        await connection.rollback();
+        connection.release();
+        return res.status(400).json({ error: "org_id is required" });
+      }
+
+      const [lastOrderRows] = await connection.execute(
         `
-        INSERT INTO orders
-        (customer_name, phone, table_number, items_ordered, special_instructions, isActive,org_id)
-        VALUES (?, ?, ?, ?, ?, 1,?)
-        `,
+      SELECT order_id
+      FROM orders
+      WHERE org_id = ?
+        AND order_id IS NOT NULL
+      ORDER BY id DESC
+      LIMIT 1
+      FOR UPDATE
+      `,
+        [org_id],
+      );
+
+      let nextOrderNumber = 1;
+
+      if (lastOrderRows.length > 0 && lastOrderRows[0].order_id) {
+        const lastOrderId = lastOrderRows[0].order_id;
+        const lastNumber = parseInt(lastOrderId.split("-")[1], 10);
+
+        if (!isNaN(lastNumber)) {
+          nextOrderNumber = lastNumber + 1;
+        }
+      }
+
+      const generatedOrderId = `ORD-${String(nextOrderNumber).padStart(3, "0")}`;
+
+      const [result] = await connection.execute(
+        `
+      INSERT INTO orders
+      (
+        customer_name,
+        phone,
+        table_number,
+        items_ordered,
+        special_instructions,
+        isActive,
+        org_id,
+        order_id
+      )
+      VALUES (?, ?, ?, ?, ?, 1, ?, ?)
+      `,
         [
           customer_name ?? null,
           phone ?? null,
           table_number ?? null,
           items_ordered ?? null,
           special_instructions ?? null,
-          org_id ?? null,
+          org_id,
+          generatedOrderId,
         ],
       );
 
       const insertedId = result.insertId;
-      const generatedOrderId = `ORD-${String(insertedId).padStart(4, "0")}`;
 
-      await db.execute(`UPDATE orders SET order_id = ? WHERE id = ?`, [
-        generatedOrderId,
-        insertedId,
-      ]);
+      const [rows] = await connection.execute(
+        `SELECT * FROM orders WHERE id = ?`,
+        [insertedId],
+      );
 
-      const [rows] = await db.execute("SELECT * FROM orders WHERE id = ?", [
-        insertedId,
-      ]);
+      await connection.commit();
+      connection.release();
 
       const newOrder = rows[0];
 
@@ -110,6 +154,8 @@ export default function orderRoutes(io) {
 
       res.status(201).json(newOrder);
     } catch (err) {
+      await connection.rollback();
+      connection.release();
       console.error("Create order error:", err.message);
       res.status(500).json({ error: "Failed to create order" });
     }
