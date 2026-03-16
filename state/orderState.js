@@ -18,5 +18,5 @@ export function setLastSnapshot(snapshot) {
 }
 
 export function buildOrdersSignature(rows) {
-  return rows.map((o) => `${o.order_id}|${o.timestamp}|${o.org_id}`).join("||");
+  return rows.map((o) => `${o.order_id}|${o.timestamp}`).join("||");
 }

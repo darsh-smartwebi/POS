@@ -18,26 +18,10 @@ export async function watchOrders(io) {
     }
 
     if (signature !== getLastSnapshot()) {
-      console.log("Orders changed → pushing org-wise updates");
-
+      console.log("Orders changed → pushing to clients");
       setCachedOrders(rows);
       setLastSnapshot(signature);
-
-      const ordersByOrg = rows.reduce((acc, order) => {
-        const orgId = order.org_id;
-        if (orgId == null) return acc;
-
-        if (!acc[orgId]) {
-          acc[orgId] = [];
-        }
-
-        acc[orgId].push(order);
-        return acc;
-      }, {});
-
-      Object.entries(ordersByOrg).forEach(([orgId, orgOrders]) => {
-        io.to(`org_${orgId}`).emit("orders:update", orgOrders);
-      });
+      io.emit("orders:update", rows);
     }
   } catch (err) {
     console.log("Watcher error:", err.message);
