@@ -13,33 +13,18 @@ export function initSocket(server) {
   io.on("connection", (socket) => {
     console.log("Client connected:", socket.id);
 
-    socket.on("join:org", (orgId) => {
-      if (orgId == null) return;
+    socket.emit("orders:update", getCachedOrders());
 
-      socket.join(`org_${orgId}`);
-
-      const orders = getCachedOrders().filter(
-        (o) => String(o.org_id) === String(orgId),
-      );
-
-      socket.emit("orders:update", {
-        org_id: orgId,
-        orders,
-      });
-    });
-
-    socket.on("orders:filter", async ({ order_id, org_id }) => {
+    socket.on("orders:filter", async (order_id) => {
       try {
-        if (!order_id || org_id == null) {
-          socket.emit("orders:filterResult", {
-            error: "order_id and org_id are required",
-          });
+        if (!order_id) {
+          socket.emit("orders:filterResult", { error: "order_id is required" });
           return;
         }
 
         const [rows] = await db.execute(
-          "SELECT * FROM orders WHERE order_id = ? AND org_id = ? AND isActive = 1 LIMIT 1",
-          [order_id, org_id],
+          "SELECT * FROM orders WHERE order_id = ? AND isActive = 1 LIMIT 1",
+          [order_id]
         );
 
         if (rows.length) socket.emit("orders:filterResult", rows[0]);
