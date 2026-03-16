@@ -13,10 +13,7 @@ export function initSocket(server) {
   io.on("connection", (socket) => {
     console.log("Client connected:", socket.id);
 
-    socket.emit("orders:update", {
-  org_id: null,
-  orders: getCachedOrders(),
-});
+    socket.emit("orders:update", getCachedOrders());
 
     socket.on("orders:filter", async (order_id) => {
       try {
