@@ -164,7 +164,10 @@ export default function orderRoutes(io) {
     const freshOrders = await fetchOrdersFromDb();
     setCachedOrders(freshOrders);
     setLastSnapshot(buildOrdersSignature(freshOrders));
-    io.emit("orders:update", freshOrders);
+    io.emit("orders:update", {
+  org_id,
+  orders: freshOrders,
+});
 
     return res.status(201).json(newOrder);
   } catch (err) {
@@ -204,7 +207,10 @@ export default function orderRoutes(io) {
       const freshOrders = await fetchOrdersFromDb();
       setCachedOrders(freshOrders);
       setLastSnapshot(buildOrdersSignature(freshOrders));
-      io.emit("orders:update", freshOrders);
+      io.emit("orders:update", {
+  org_id: order.org_id,
+  orders: freshOrders,
+});
 
       res.json({ message: "Order deactivated and customer updated" });
     } catch (err) {
