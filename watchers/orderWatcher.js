@@ -6,41 +6,57 @@ import {
   buildOrdersSignature,
 } from "../state/orderState.js";
 
+const activeOrgIds = new Set();
+
 export async function watchOrders(io) {
   try {
     const rows = await fetchOrdersFromDb();
     const signature = buildOrdersSignature(rows);
 
+    // First run — seed cache & snapshot, no emit needed yet.
     if (!getLastSnapshot()) {
       setCachedOrders(rows);
       setLastSnapshot(signature);
+
+      // Seed the active org set so the first real change is diffed correctly.
+      rows.forEach((o) => { if (o.org_id != null) activeOrgIds.add(String(o.org_id)); });
       return;
     }
 
-    if (signature !== getLastSnapshot()) {
-      console.log("Orders changed → pushing org-wise updates");
+    if (signature === getLastSnapshot()) return; // nothing changed
 
-      setCachedOrders(rows);
-      setLastSnapshot(signature);
+    console.log("Orders changed → pushing org-wise updates");
 
-      const ordersByOrg = rows.reduce((acc, order) => {
-        const orgId = order.org_id;
-        if (orgId == null) return acc;
+    setCachedOrders(rows);
+    setLastSnapshot(signature);
 
-        if (!acc[orgId]) {
-          acc[orgId] = [];
-        }
+    // Group new rows by org.
+    const ordersByOrg = rows.reduce((acc, order) => {
+      const orgId = String(order.org_id);
+      if (order.org_id == null) return acc;
+      if (!acc[orgId]) acc[orgId] = [];
+      acc[orgId].push(order);
+      return acc;
+    }, {});
 
-        acc[orgId].push(order);
-        return acc;
-      }, {});
+    // Notify every org that has orders now.
+    const newOrgIds = new Set(Object.keys(ordersByOrg));
+    newOrgIds.forEach((orgId) => {
+      io.to(`org_${orgId}`).emit("orders:update", ordersByOrg[orgId]);
+      activeOrgIds.add(orgId);
+    });
 
-      Object.entries(ordersByOrg).forEach(([orgId, orgOrders]) => {
-        io.to(`org_${orgId}`).emit("orders:update", orgOrders);
-      });
-    }
+    // Notify orgs that HAD orders before but have NONE now (all completed/deactivated).
+    // Without this, those clients never receive a signal to clear their list.
+    activeOrgIds.forEach((orgId) => {
+      if (!newOrgIds.has(orgId)) {
+        io.to(`org_${orgId}`).emit("orders:update", []);
+        activeOrgIds.delete(orgId);
+      }
+    });
+
   } catch (err) {
-    console.log("Watcher error:", err.message);
+    console.error("Watcher error:", err.message);
   }
 }
 
