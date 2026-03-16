@@ -6,7 +6,7 @@ export function getCachedOrders() {
 }
 
 export function setCachedOrders(orders) {
-  cachedOrders = orders;
+  cachedOrders = Array.isArray(orders) ? orders : [];
 }
 
 export function getLastSnapshot() {
@@ -18,5 +18,23 @@ export function setLastSnapshot(snapshot) {
 }
 
 export function buildOrdersSignature(rows) {
-  return rows.map((o) => `${o.order_id}|${o.timestamp}`).join("||");
+  return (Array.isArray(rows) ? rows : [])
+    .map(
+      (o) =>
+        [
+          o.id,
+          o.org_id,
+          o.order_id,
+          o.isActive,
+          o.customer_name,
+          o.phone,
+          o.table_number,
+          o.items_ordered,
+          o.special_instructions,
+          o.created_at,
+          o.updated_at,
+          o.timestamp,
+        ].join("|"),
+    )
+    .join("||");
 }

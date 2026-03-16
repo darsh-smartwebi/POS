@@ -63,68 +63,68 @@ export default function orderRoutes(io) {
   });
 
   router.post("/orders", async (req, res) => {
-  const connection = await db.getConnection();
+    const connection = await db.getConnection();
 
-  try {
-    await connection.beginTransaction();
+    try {
+      await connection.beginTransaction();
 
-    const {
-      customer_name,
-      phone,
-      table_number,
-      items_ordered,
-      special_instructions,
-      org_id,
-    } = req.body;
+      const {
+        customer_name,
+        phone,
+        table_number,
+        items_ordered,
+        special_instructions,
+        org_id,
+      } = req.body;
 
-    if (org_id == null) {
-      await connection.rollback();
-      connection.release();
-      return res.status(400).json({ error: "org_id is required" });
-    }
+      if (org_id == null) {
+        await connection.rollback();
+        connection.release();
+        return res.status(400).json({ error: "org_id is required" });
+      }
 
-    // Make sure counter row exists for this org
-    await connection.execute(
-      `
+      // Make sure counter row exists for this org
+      await connection.execute(
+        `
       INSERT INTO org_order_counters (org_id, last_order_number)
       VALUES (?, 0)
       ON DUPLICATE KEY UPDATE org_id = org_id
       `,
-      [org_id]
-    );
+        [org_id],
+      );
 
-    // Lock this org's counter row
-    const [counterRows] = await connection.execute(
-      `
+      // Lock this org's counter row
+      const [counterRows] = await connection.execute(
+        `
       SELECT last_order_number
       FROM org_order_counters
       WHERE org_id = ?
       FOR UPDATE
       `,
-      [org_id]
-    );
+        [org_id],
+      );
 
-    let nextOrderNumber = 1;
+      let nextOrderNumber = 1;
 
-    if (counterRows.length > 0) {
-      nextOrderNumber = Number(counterRows[0].last_order_number || 0) + 1;
-    }
+      if (counterRows.length > 0) {
+        nextOrderNumber = Number(counterRows[0].last_order_number || 0) + 1;
+      }
 
-    const generatedOrderId = `ORD-${nextOrderNumber}`;
+      const generatedOrderId = `ORD-${nextOrderNumber}`;
 
-    // Update counter
-    await connection.execute(
-      `
+      // Update counter
+      await connection.execute(
+        `
       UPDATE org_order_counters
       SET last_order_number = ?
       WHERE org_id = ?
       `,
-      [nextOrderNumber, org_id]
-    );
+        [nextOrderNumber, org_id],
+      );
 
-    // Insert order
-    const [result] = await connection.execute(
-      `
+      // Insert order
+      const [result] = await connection.execute(
+        `
       INSERT INTO orders
       (
         customer_name,
@@ -138,42 +138,51 @@ export default function orderRoutes(io) {
       )
       VALUES (?, ?, ?, ?, ?, 1, ?, ?)
       `,
-      [
-        customer_name ?? null,
-        phone ?? null,
-        table_number ?? null,
-        items_ordered ?? null,
-        special_instructions ?? null,
+        [
+          customer_name ?? null,
+          phone ?? null,
+          table_number ?? null,
+          items_ordered ?? null,
+          special_instructions ?? null,
+          org_id,
+          generatedOrderId,
+        ],
+      );
+
+      const insertedId = result.insertId;
+
+      const [rows] = await connection.execute(
+        `SELECT * FROM orders WHERE id = ?`,
+        [insertedId],
+      );
+
+      await connection.commit();
+      connection.release();
+
+      const newOrder = rows[0];
+
+      const freshOrders = await fetchOrdersFromDb();
+
+      setCachedOrders(freshOrders);
+      setLastSnapshot(buildOrdersSignature(freshOrders));
+
+      const orgOrders = freshOrders.filter(
+        (o) => String(o.org_id) === String(org_id),
+      );
+
+      io.to(`org_${org_id}`).emit("orders:update", {
         org_id,
-        generatedOrderId,
-      ]
-    );
+        orders: orgOrders,
+      });
 
-    const insertedId = result.insertId;
-
-    const [rows] = await connection.execute(
-      `SELECT * FROM orders WHERE id = ?`,
-      [insertedId]
-    );
-
-    await connection.commit();
-    connection.release();
-
-    const newOrder = rows[0];
-
-    const freshOrders = await fetchOrdersFromDb();
-    setCachedOrders(freshOrders);
-    setLastSnapshot(buildOrdersSignature(freshOrders));
-    io.emit("orders:update", freshOrders);
-
-    return res.status(201).json(newOrder);
-  } catch (err) {
-    await connection.rollback();
-    connection.release();
-    console.error("Create order error:", err.message);
-    return res.status(500).json({ error: "Failed to create order" });
-  }
-});
+      return res.status(201).json(newOrder);
+    } catch (err) {
+      await connection.rollback();
+      connection.release();
+      console.error("Create order error:", err.message);
+      return res.status(500).json({ error: "Failed to create order" });
+    }
+  });
 
   router.put("/orders/:id/deactivate", async (req, res) => {
     const conn = await db.getConnection();
@@ -204,7 +213,15 @@ export default function orderRoutes(io) {
       const freshOrders = await fetchOrdersFromDb();
       setCachedOrders(freshOrders);
       setLastSnapshot(buildOrdersSignature(freshOrders));
-      io.emit("orders:update", freshOrders);
+
+      const orgOrders = freshOrders.filter(
+        (o) => String(o.org_id) === String(order.org_id)
+      );
+
+      io.to(`org_${order.org_id}`).emit("orders:update", {
+        org_id: order.org_id,
+        orders: orgOrders,
+      });
 
       res.json({ message: "Order deactivated and customer updated" });
     } catch (err) {

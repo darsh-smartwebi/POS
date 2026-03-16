@@ -6,29 +6,21 @@ import {
   buildOrdersSignature,
 } from "../state/orderState.js";
 
-export async function watchOrders(io) {
+export async function watchOrders() {
   try {
     const rows = await fetchOrdersFromDb();
     const signature = buildOrdersSignature(rows);
 
-    if (!getLastSnapshot()) {
-      setCachedOrders(rows);
-      setLastSnapshot(signature);
-      return;
-    }
-
     if (signature !== getLastSnapshot()) {
-      console.log("Orders changed → pushing to clients");
       setCachedOrders(rows);
       setLastSnapshot(signature);
-      io.emit("orders:update", rows);
     }
   } catch (err) {
     console.log("Watcher error:", err.message);
   }
 }
 
-export function startOrderWatcher(io) {
-  watchOrders(io);
-  setInterval(() => watchOrders(io), 5000);
+export function startOrderWatcher() {
+  watchOrders();
+  setInterval(() => watchOrders(), 5000);
 }
