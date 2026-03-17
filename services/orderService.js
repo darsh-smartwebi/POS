@@ -46,23 +46,25 @@ export async function fetchOrderByOrderId(id, isActive) {
 }
 
 export async function upsertCustomerFromOrder(conn, order) {
-  const phone = order?.phone;
-  if (!phone) return;
+  const phone  = order?.phone;
+  const org_id = order?.org_id;
 
-  const name = order?.customer_name ?? null;
+  if (!phone || !org_id) return;
+
+  const name          = order?.customer_name ?? null;
   const lastOrderTime = order?.timestamp ?? new Date();
-  const lastOrderId = order?.order_id ?? null;
+  const lastOrderId   = order?.order_id ?? null;
 
   await conn.execute(
     `
-    INSERT INTO customers (full_name, phone, total_visits, last_order, last_order_id)
-    VALUES (?, ?, 1, ?, ?)
+    INSERT INTO customers (full_name, phone, org_id, total_visits, last_order, last_order_id)
+    VALUES (?, ?, ?, 1, ?, ?)
     ON DUPLICATE KEY UPDATE
-      total_visits = total_visits + 1,
-      last_order = VALUES(last_order),
+      total_visits  = total_visits + 1,
+      last_order    = VALUES(last_order),
       last_order_id = VALUES(last_order_id),
-      full_name = COALESCE(VALUES(full_name), full_name)
+      full_name     = COALESCE(VALUES(full_name), full_name)
     `,
-    [name, phone, lastOrderTime, lastOrderId],
+    [name, phone, org_id, lastOrderTime, lastOrderId],
   );
 }
