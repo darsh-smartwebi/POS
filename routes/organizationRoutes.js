@@ -230,4 +230,29 @@ router.get("/organizationByUserEmail", async (req, res) => {
   }
 });
 
+router.get('/download-qr', async (req, res) => {
+  const { url, filename } = req.query;
+
+  if (!url) {
+    return res.status(400).json({ error: 'URL is required' });
+  }
+
+  // Only allow your Azure blob storage domain
+  if (!url.startsWith('https://region02devstorage.blob.core.windows.net/')) {
+    return res.status(403).json({ error: 'Domain not allowed' });
+  }
+
+  try {
+    const response = await axios.get(url, { responseType: 'arraybuffer' });
+
+    res.setHeader('Content-Type', response.headers['content-type'] || 'image/png');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename || 'QR.png'}"`);
+    res.setHeader('Access-Control-Allow-Origin', 'https://mtssadmin.esc2.net');
+
+    res.send(response.data);
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to fetch image' });
+  }
+});
+
 export default router;
