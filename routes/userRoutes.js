@@ -52,7 +52,7 @@ router.get("/usersByOrgId", async (req, res) => {
 
 router.get("/users/by-email", async (req, res) => {
   try {
-    const email = req.query.email?.trim();
+    const email = req.query.email?.replace(/ /g, "+");
     const orgId = req.query.orgId;
 
     if (!email) {

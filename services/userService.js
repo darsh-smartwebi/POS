@@ -172,7 +172,7 @@ export async function getUserByEmail(email, orgId) {
   const params = [email];
 
   if (orgId !== undefined && orgId !== null && orgId !== "") {
-    query += " AND orgId = ?";
+    query += " AND org_id = ?";
     params.push(orgId);
   }
 
