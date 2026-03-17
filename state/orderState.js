@@ -1,22 +1,28 @@
-let cachedOrders = [];
-let lastSnapshot = null;
+// Per-org cache: { [orgId]: { orders: [], snapshot: "" } }
+const orgState = new Map();
 
-export function getCachedOrders() {
-  return cachedOrders;
+export function getCachedOrders(orgId) {
+  return orgState.get(orgId)?.orders ?? [];
 }
 
-export function setCachedOrders(orders) {
-  cachedOrders = orders;
+export function setCachedOrders(orgId, orders) {
+  if (!orgState.has(orgId)) orgState.set(orgId, { orders: [], snapshot: null });
+  orgState.get(orgId).orders = orders;
 }
 
-export function getLastSnapshot() {
-  return lastSnapshot;
+export function getLastSnapshot(orgId) {
+  return orgState.get(orgId)?.snapshot ?? null;
 }
 
-export function setLastSnapshot(snapshot) {
-  lastSnapshot = snapshot;
+export function setLastSnapshot(orgId, snapshot) {
+  if (!orgState.has(orgId)) orgState.set(orgId, { orders: [], snapshot: null });
+  orgState.get(orgId).snapshot = snapshot;
 }
 
 export function buildOrdersSignature(rows) {
   return rows.map((o) => `${o.order_id}|${o.timestamp}`).join("||");
+}
+
+export function getAllOrgIds() {
+  return [...orgState.keys()];
 }

@@ -161,10 +161,10 @@ export default function orderRoutes(io) {
 
       const newOrder = rows[0];
 
-      const freshOrders = await fetchOrdersFromDb();
-      setCachedOrders(freshOrders);
-      setLastSnapshot(buildOrdersSignature(freshOrders));
-      io.emit("orders:update", freshOrders);
+      const freshOrders = await fetchOrdersFromDb(org_id);   // scoped
+      setCachedOrders(org_id, freshOrders);
+      setLastSnapshot(org_id, buildOrdersSignature(freshOrders));
+      io.to(`org:${org_id}`).emit("orders:update", freshOrders); // ← scoped room
 
       return res.status(201).json(newOrder);
     } catch (err) {
@@ -201,10 +201,11 @@ export default function orderRoutes(io) {
 
       await conn.commit();
 
-      const freshOrders = await fetchOrdersFromDb();
-      setCachedOrders(freshOrders);
-      setLastSnapshot(buildOrdersSignature(freshOrders));
-      io.emit("orders:update", freshOrders);
+      const { org_id } = order;
+      const freshOrders = await fetchOrdersFromDb(org_id);
+      setCachedOrders(org_id, freshOrders);
+      setLastSnapshot(org_id, buildOrdersSignature(freshOrders));
+      io.to(`org:${org_id}`).emit("orders:update", freshOrders); // ← scoped room
 
       res.json({ message: "Order deactivated and customer updated" });
     } catch (err) {

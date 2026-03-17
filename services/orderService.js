@@ -1,8 +1,16 @@
 import db from "../db.js";
 
-export async function fetchOrdersFromDb() {
+export async function fetchOrdersFromDb(orgId = null) {
+  if (orgId) {
+    const [rows] = await db.execute(
+      "SELECT * FROM orders WHERE org_id = ? AND isActive = 1 ORDER BY id DESC",
+      [orgId]
+    );
+    return rows;
+  }
+  // fallback: fetch all (used only internally if needed)
   const [rows] = await db.execute(
-    "SELECT * FROM orders WHERE isActive = 1 ORDER BY timestamp DESC",
+    "SELECT * FROM orders WHERE isActive = 1 ORDER BY id DESC"
   );
   return rows;
 }

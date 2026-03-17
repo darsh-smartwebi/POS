@@ -4,31 +4,49 @@ import { getCachedOrders } from "./state/orderState.js";
 
 export function initSocket(server) {
   const io = new Server(server, {
-    cors: {
-      origin: "*",
-      methods: ["GET", "POST", "PUT"],
-    },
+    cors: { origin: "*", methods: ["GET", "POST", "PUT"] },
   });
 
   io.on("connection", (socket) => {
     console.log("Client connected:", socket.id);
 
-    socket.emit("orders:update", getCachedOrders());
+    // Client must join their org room immediately after connecting
+    socket.on("org:join", (orgId) => {
+      if (!orgId) return;
 
-    socket.on("orders:filter", async (order_id) => {
+      // Leave any previously joined org rooms
+      socket.rooms.forEach((room) => {
+        if (room !== socket.id && room.startsWith("org:")) {
+          socket.leave(room);
+        }
+      });
+
+      const room = `org:${orgId}`;
+      socket.join(room);
+      console.log(`Socket ${socket.id} joined room ${room}`);
+
+      // Send current cached orders for this org immediately
+      socket.emit("orders:update", getCachedOrders(orgId));
+    });
+
+    socket.on("orders:filter", async ({ order_id, org_id }) => {
       try {
-        if (!order_id) {
-          socket.emit("orders:filterResult", { error: "order_id is required" });
+        if (!order_id || !org_id) {
+          socket.emit("orders:filterResult", {
+            error: "order_id and org_id are required",
+          });
           return;
         }
 
         const [rows] = await db.execute(
-          "SELECT * FROM orders WHERE order_id = ? AND isActive = 1 LIMIT 1",
-          [order_id]
+          "SELECT * FROM orders WHERE order_id = ? AND org_id = ? AND isActive = 1 LIMIT 1",
+          [order_id, org_id]
         );
 
-        if (rows.length) socket.emit("orders:filterResult", rows[0]);
-        else socket.emit("orders:filterResult", { error: "Order not found" });
+        socket.emit(
+          "orders:filterResult",
+          rows.length ? rows[0] : { error: "Order not found" }
+        );
       } catch (err) {
         console.error("Socket filter error:", err);
         socket.emit("orders:filterResult", { error: "Server error" });
