@@ -1,7 +1,8 @@
 import express from "express";
 import cors from "cors";
 import http from "http";
-
+import swaggerUi from "swagger-ui-express";
+import swaggerSpec from "./swagger.js";
 import { initSocket } from "./socket.js";
 import { startOrderWatcher } from "./watchers/orderWatcher.js";
 
@@ -21,6 +22,8 @@ const io = initSocket(server);
 const PORT = Number(process.env.PORT) || 3000;
 
 app.get("/health", (req, res) => res.json({ ok: true }));
+
+app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 app.use("/api", orderRoutes(io));
 app.use("/api", customerRoutes);

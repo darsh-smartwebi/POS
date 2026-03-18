@@ -3,6 +3,51 @@ import db from "../db.js";
 
 const router = express.Router();
 
+/**
+ * @openapi
+ * /api/organization:
+ *   post:
+ *     summary: Create a new organization
+ *     tags:
+ *       - Organizations
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - org_title
+ *             properties:
+ *               org_title:
+ *                 type: string
+ *                 example: My Restaurant
+ *               org_type:
+ *                 type: string
+ *                 example: Cafe
+ *               org_address:
+ *                 type: string
+ *                 example: Surat, Gujarat
+ *               org_logo:
+ *                 type: string
+ *                 example: https://example.com/logo.png
+ *               org_preview_link:
+ *                 type: string
+ *                 example: https://example.com/preview
+ *               org_embedcode:
+ *                 type: string
+ *                 example: <iframe></iframe>
+ *               org_qrcode:
+ *                 type: string
+ *                 example: https://example.com/qr.png
+ *     responses:
+ *       200:
+ *         description: Organization created successfully
+ *       400:
+ *         description: org_title is required
+ *       500:
+ *         description: Server error
+ */
 router.post("/organization", async (req, res) => {
   try {
     const {
@@ -56,6 +101,19 @@ router.post("/organization", async (req, res) => {
   }
 });
 
+/**
+ * @openapi
+ * /api/getAllOrganization:
+ *   get:
+ *     summary: Get all organizations
+ *     tags:
+ *       - Organizations
+ *     responses:
+ *       200:
+ *         description: List of all organizations
+ *       500:
+ *         description: Server error
+ */
 router.get("/getAllOrganization", async (req, res) => {
   try {
     const [rows] = await db.execute(
@@ -68,6 +126,30 @@ router.get("/getAllOrganization", async (req, res) => {
   }
 });
 
+/**
+ * @openapi
+ * /api/getOrganizationById:
+ *   get:
+ *     summary: Get organization by ID
+ *     tags:
+ *       - Organizations
+ *     parameters:
+ *       - in: query
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: Organization ID
+ *     responses:
+ *       200:
+ *         description: Organization found
+ *       400:
+ *         description: Organization id is required
+ *       404:
+ *         description: Organization not found
+ *       500:
+ *         description: Server error
+ */
 router.get("/getOrganizationById", async (req, res) => {
   try {
     const { id } = req.query;
@@ -92,6 +174,19 @@ router.get("/getOrganizationById", async (req, res) => {
   }
 });
 
+/**
+ * @openapi
+ * /api/activeOrganization:
+ *   get:
+ *     summary: Get active organizations
+ *     tags:
+ *       - Organizations
+ *     responses:
+ *       200:
+ *         description: List of active organizations
+ *       500:
+ *         description: Server error
+ */
 router.get("/activeOrganization", async (req, res) => {
   try {
     const [rows] = await db.execute(
@@ -108,6 +203,51 @@ router.get("/activeOrganization", async (req, res) => {
   }
 });
 
+/**
+ * @openapi
+ * /api/organization:
+ *   put:
+ *     summary: Update organization by ID
+ *     tags:
+ *       - Organizations
+ *     parameters:
+ *       - in: query
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: Organization ID
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               org_title:
+ *                 type: string
+ *               org_type:
+ *                 type: string
+ *               org_address:
+ *                 type: string
+ *               org_logo:
+ *                 type: string
+ *               org_preview_link:
+ *                 type: string
+ *               org_embedcode:
+ *                 type: string
+ *               org_qrcode:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Organization updated successfully
+ *       400:
+ *         description: Organization id is required
+ *       404:
+ *         description: Organization not found
+ *       500:
+ *         description: Server error
+ */
 router.put("/organization", async (req, res) => {
   try {
     const { id } = req.query;
@@ -174,6 +314,30 @@ router.put("/organization", async (req, res) => {
   }
 });
 
+/**
+ * @openapi
+ * /api/organization/deactivate:
+ *   put:
+ *     summary: Deactivate organization by ID
+ *     tags:
+ *       - Organizations
+ *     parameters:
+ *       - in: query
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: Organization ID
+ *     responses:
+ *       200:
+ *         description: Organization deactivated
+ *       400:
+ *         description: Organization id is required
+ *       404:
+ *         description: Organization not found
+ *       500:
+ *         description: Server error
+ */
 router.put("/organization/deactivate", async (req, res) => {
   try {
     const { id } = req.query;
@@ -198,6 +362,30 @@ router.put("/organization/deactivate", async (req, res) => {
   }
 });
 
+/**
+ * @openapi
+ * /api/organizationByUserEmail:
+ *   get:
+ *     summary: Get organization by user email
+ *     tags:
+ *       - Organizations
+ *     parameters:
+ *       - in: query
+ *         name: email
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: User email
+ *     responses:
+ *       200:
+ *         description: Organization found for user
+ *       400:
+ *         description: email is required
+ *       404:
+ *         description: Organization not found for this user
+ *       500:
+ *         description: Server error
+ */
 router.get("/organizationByUserEmail", async (req, res) => {
   try {
     const { email } = req.query;

@@ -11,6 +11,55 @@ import {
 
 const router = express.Router();
 
+/**
+ * @openapi
+ * /api/users:
+ *   post:
+ *     summary: Create a new user
+ *     tags:
+ *       - Users
+ *     parameters:
+ *       - in: query
+ *         name: orgId
+ *         schema:
+ *           type: integer
+ *         description: Optional orgId from query if not sent in body
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               firstName:
+ *                 type: string
+ *                 example: Darsh
+ *               lastName:
+ *                 type: string
+ *                 example: Torani
+ *               role:
+ *                 type: string
+ *                 example: Admin
+ *               email:
+ *                 type: string
+ *                 example: darsh@gmail.com
+ *               phoneNo:
+ *                 type: string
+ *                 example: "9876543210"
+ *               password:
+ *                 type: string
+ *                 example: "123456"
+ *               orgId:
+ *                 type: integer
+ *                 example: 1
+ *     responses:
+ *       200:
+ *         description: User created successfully
+ *       400:
+ *         description: Validation error
+ *       500:
+ *         description: Server error
+ */
 router.post("/users", async (req, res) => {
   try {
     req.body.orgId = req.body.orgId ?? req.query.orgId;
@@ -23,6 +72,25 @@ router.post("/users", async (req, res) => {
   }
 });
 
+/**
+ * @openapi
+ * /api/users:
+ *   get:
+ *     summary: Get all users
+ *     tags:
+ *       - Users
+ *     parameters:
+ *       - in: query
+ *         name: search
+ *         schema:
+ *           type: string
+ *         description: Search users
+ *     responses:
+ *       200:
+ *         description: List of users
+ *       500:
+ *         description: Server error
+ */
 router.get("/users", async (req, res) => {
   try {
     const users = await getAllUsers(req.query.search);
@@ -33,6 +101,28 @@ router.get("/users", async (req, res) => {
   }
 });
 
+/**
+ * @openapi
+ * /api/usersByOrgId:
+ *   get:
+ *     summary: Get users by organization ID
+ *     tags:
+ *       - Users
+ *     parameters:
+ *       - in: query
+ *         name: orgId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: Organization ID
+ *     responses:
+ *       200:
+ *         description: List of users for the organization
+ *       400:
+ *         description: orgId is required
+ *       500:
+ *         description: Server error
+ */
 router.get("/usersByOrgId", async (req, res) => {
   try {
     const { orgId } = req.query;
@@ -43,13 +133,41 @@ router.get("/usersByOrgId", async (req, res) => {
 
     const users = await getUsersByOrgId(orgId);
     return res.json(users);
-
   } catch (error) {
     console.error("get users by orgId error:", error);
     return res.status(500).json({ error: error.message });
   }
 });
 
+/**
+ * @openapi
+ * /api/users/by-email:
+ *   get:
+ *     summary: Get user by email
+ *     tags:
+ *       - Users
+ *     parameters:
+ *       - in: query
+ *         name: email
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: User email
+ *       - in: query
+ *         name: orgId
+ *         schema:
+ *           type: integer
+ *         description: Optional organization ID
+ *     responses:
+ *       200:
+ *         description: User found successfully
+ *       400:
+ *         description: email is required
+ *       404:
+ *         description: User not found
+ *       500:
+ *         description: Server error
+ */
 router.get("/users/by-email", async (req, res) => {
   try {
     const email = req.query.email?.replace(/ /g, "+");
@@ -72,6 +190,28 @@ router.get("/users/by-email", async (req, res) => {
   }
 });
 
+/**
+ * @openapi
+ * /api/users/{id}:
+ *   get:
+ *     summary: Get user by ID
+ *     tags:
+ *       - Users
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: User ID
+ *     responses:
+ *       200:
+ *         description: User found successfully
+ *       404:
+ *         description: User not found
+ *       500:
+ *         description: Server error
+ */
 router.get("/users/:id", async (req, res) => {
   try {
     const user = await getUserById(req.params.id);
@@ -87,6 +227,49 @@ router.get("/users/:id", async (req, res) => {
   }
 });
 
+/**
+ * @openapi
+ * /api/users/{id}:
+ *   put:
+ *     summary: Update user by ID
+ *     tags:
+ *       - Users
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: User ID
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               firstName:
+ *                 type: string
+ *               lastName:
+ *                 type: string
+ *               role:
+ *                 type: string
+ *               email:
+ *                 type: string
+ *               phoneNo:
+ *                 type: string
+ *               password:
+ *                 type: string
+ *               orgId:
+ *                 type: integer
+ *     responses:
+ *       200:
+ *         description: User updated successfully
+ *       404:
+ *         description: User not found
+ *       500:
+ *         description: Server error
+ */
 router.put("/users/:id", async (req, res) => {
   try {
     const updatedUser = await updateUser(req.params.id, req.body);
@@ -102,6 +285,28 @@ router.put("/users/:id", async (req, res) => {
   }
 });
 
+/**
+ * @openapi
+ * /api/users/{id}:
+ *   delete:
+ *     summary: Delete user by ID
+ *     tags:
+ *       - Users
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: User ID
+ *     responses:
+ *       200:
+ *         description: User deleted successfully
+ *       404:
+ *         description: User not found
+ *       500:
+ *         description: Server error
+ */
 router.delete("/users/:id", async (req, res) => {
   try {
     const result = await deleteUser(req.params.id);

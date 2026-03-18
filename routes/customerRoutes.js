@@ -3,6 +3,31 @@ import db from "../db.js";
 
 const router = express.Router();
 
+/**
+ * @openapi
+ * /api/customers:
+ *   get:
+ *     summary: Get all customers
+ *     tags:
+ *       - Customers
+ *     parameters:
+ *       - in: query
+ *         name: search
+ *         schema:
+ *           type: string
+ *         description: Search by name or phone
+ *       - in: query
+ *         name: sort
+ *         schema:
+ *           type: string
+ *           enum: [asc, desc]
+ *         description: Sort by last_order (default desc)
+ *     responses:
+ *       200:
+ *         description: List of customers
+ *       500:
+ *         description: Server error
+ */
 router.get("/customers", async (req, res) => {
   try {
     const { search, sort = "desc" } = req.query;
@@ -33,6 +58,39 @@ router.get("/customers", async (req, res) => {
   }
 });
 
+/**
+ * @openapi
+ * /api/getCustomersByOrg:
+ *   get:
+ *     summary: Get customers by organization ID
+ *     tags:
+ *       - Customers
+ *     parameters:
+ *       - in: query
+ *         name: orgId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: Organization ID
+ *       - in: query
+ *         name: search
+ *         schema:
+ *           type: string
+ *         description: Search by name or phone
+ *       - in: query
+ *         name: sort
+ *         schema:
+ *           type: string
+ *           enum: [asc, desc]
+ *         description: Sort by last_order (default desc)
+ *     responses:
+ *       200:
+ *         description: List of customers filtered by orgId
+ *       400:
+ *         description: orgId is required
+ *       500:
+ *         description: Server error
+ */
 router.get("/getCustomersByOrg", async (req, res) => {
   try {
     const { search, sort = "desc", orgId } = req.query;

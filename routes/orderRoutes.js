@@ -16,6 +16,31 @@ import {
 export default function orderRoutes(io) {
   const router = express.Router();
 
+  /**
+   * @openapi
+   * /api/orders:
+   *   get:
+   *     summary: Get orders by active status and optional organization
+   *     tags:
+   *       - Orders
+   *     parameters:
+   *       - in: query
+   *         name: isActive
+   *         schema:
+   *           type: string
+   *           enum: ["0", "1"]
+   *         description: Filter active or inactive orders. Default is active.
+   *       - in: query
+   *         name: orgId
+   *         schema:
+   *           type: integer
+   *         description: Filter orders by organization ID
+   *     responses:
+   *       200:
+   *         description: List of orders
+   *       500:
+   *         description: Server error
+   */
   router.get("/orders", async (req, res) => {
     try {
       const { isActive, orgId } = req.query;
@@ -29,6 +54,36 @@ export default function orderRoutes(io) {
     }
   });
 
+  /**
+   * @openapi
+   * /api/filter:
+   *   get:
+   *     summary: Get a single order by order ID
+   *     tags:
+   *       - Orders
+   *     parameters:
+   *       - in: query
+   *         name: id
+   *         required: true
+   *         schema:
+   *           type: string
+   *         description: Order ID like ORD-1
+   *       - in: query
+   *         name: isActive
+   *         schema:
+   *           type: string
+   *           enum: ["true", "false", "1", "0"]
+   *         description: Optional active status filter
+   *     responses:
+   *       200:
+   *         description: Order found successfully
+   *       400:
+   *         description: Invalid input
+   *       404:
+   *         description: Order not found
+   *       500:
+   *         description: Server error
+   */
   router.get("/filter", async (req, res) => {
     try {
       const { id, isActive } = req.query;
@@ -62,6 +117,48 @@ export default function orderRoutes(io) {
     }
   });
 
+  /**
+   * @openapi
+   * /api/orders:
+   *   post:
+   *     summary: Create a new order
+   *     tags:
+   *       - Orders
+   *     requestBody:
+   *       required: true
+   *       content:
+   *         application/json:
+   *           schema:
+   *             type: object
+   *             required:
+   *               - org_id
+   *             properties:
+   *               customer_name:
+   *                 type: string
+   *                 example: Darsh
+   *               phone:
+   *                 type: string
+   *                 example: "9876543210"
+   *               table_number:
+   *                 type: string
+   *                 example: "5"
+   *               items_ordered:
+   *                 type: string
+   *                 example: 1 Nachos, 2 Coke
+   *               special_instructions:
+   *                 type: string
+   *                 example: No onion
+   *               org_id:
+   *                 type: integer
+   *                 example: 1
+   *     responses:
+   *       201:
+   *         description: Order created successfully
+   *       400:
+   *         description: org_id is required
+   *       500:
+   *         description: Server error
+   */
   router.post("/orders", async (req, res) => {
     const connection = await db.getConnection();
 
@@ -83,7 +180,6 @@ export default function orderRoutes(io) {
         return res.status(400).json({ error: "org_id is required" });
       }
 
-      // Make sure counter row exists for this org
       await connection.execute(
         `
       INSERT INTO org_order_counters (org_id, last_order_number)
@@ -93,7 +189,6 @@ export default function orderRoutes(io) {
         [org_id],
       );
 
-      // Lock this org's counter row
       const [counterRows] = await connection.execute(
         `
       SELECT last_order_number
@@ -112,7 +207,6 @@ export default function orderRoutes(io) {
 
       const generatedOrderId = `ORD-${nextOrderNumber}`;
 
-      // Update counter
       await connection.execute(
         `
       UPDATE org_order_counters
@@ -122,7 +216,6 @@ export default function orderRoutes(io) {
         [nextOrderNumber, org_id],
       );
 
-      // Insert order
       const [result] = await connection.execute(
         `
       INSERT INTO orders
@@ -161,10 +254,10 @@ export default function orderRoutes(io) {
 
       const newOrder = rows[0];
 
-      const freshOrders = await fetchOrdersFromDb(org_id);   // scoped
+      const freshOrders = await fetchOrdersFromDb(org_id);
       setCachedOrders(org_id, freshOrders);
       setLastSnapshot(org_id, buildOrdersSignature(freshOrders));
-      io.to(`org:${org_id}`).emit("orders:update", freshOrders); // ← scoped room
+      io.to(`org:${org_id}`).emit("orders:update", freshOrders);
 
       return res.status(201).json(newOrder);
     } catch (err) {
@@ -175,6 +268,28 @@ export default function orderRoutes(io) {
     }
   });
 
+  /**
+   * @openapi
+   * /api/orders/{id}/deactivate:
+   *   put:
+   *     summary: Deactivate an order and update customer data
+   *     tags:
+   *       - Orders
+   *     parameters:
+   *       - in: path
+   *         name: id
+   *         required: true
+   *         schema:
+   *           type: integer
+   *         description: Database ID of the order
+   *     responses:
+   *       200:
+   *         description: Order deactivated successfully
+   *       404:
+   *         description: Order not found
+   *       500:
+   *         description: Server error
+   */
   router.put("/orders/:id/deactivate", async (req, res) => {
     const conn = await db.getConnection();
 
@@ -205,7 +320,7 @@ export default function orderRoutes(io) {
       const freshOrders = await fetchOrdersFromDb(org_id);
       setCachedOrders(org_id, freshOrders);
       setLastSnapshot(org_id, buildOrdersSignature(freshOrders));
-      io.to(`org:${org_id}`).emit("orders:update", freshOrders); // ← scoped room
+      io.to(`org:${org_id}`).emit("orders:update", freshOrders);
 
       res.json({ message: "Order deactivated and customer updated" });
     } catch (err) {
