@@ -1,5 +1,10 @@
 import swaggerJSDoc from "swagger-jsdoc";
 
+const serverUrl =
+  process.env.NODE_ENV === "production"
+    ? "https://pos-uwuz.onrender.com"
+    : "http://localhost:3000";
+
 const options = {
   definition: {
     openapi: "3.0.0",
@@ -10,10 +15,7 @@ const options = {
     },
     servers: [
       {
-        url: "http://localhost:3000",
-      },
-      {
-        url: "https://pos-uwuz.onrender.com",
+        url: serverUrl,
       },
     ],
   },
