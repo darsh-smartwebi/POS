@@ -189,3 +189,22 @@ export async function getUsersByOrgId(orgId) {
   );
   return rows;
 }
+
+
+export async function getOrgIdByEmail(email) {
+  try {
+    const [rows] = await db.execute(
+      `SELECT org_id FROM pos_users WHERE email = ? LIMIT 1`,
+      [email]
+    );
+
+    if (rows.length === 0) {
+      return null;
+    }
+
+    return rows[0].orgId;
+  } catch (error) {
+    console.error("getOrgIdByEmail error:", error);
+    throw error;
+  }
+}
