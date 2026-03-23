@@ -73,6 +73,27 @@ router.post("/users", async (req, res) => {
   }
 });
 
+router.get("/users/orgid-by-email", async (req, res) => {
+  try {
+    const email = req.query.email?.replace(/ /g, "+");
+
+    if (!email) {
+      return res.status(400).json({ error: "email is required" });
+    }
+    
+    const orgId = await getOrgIdByEmail(email);
+
+    if (!orgId) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    return res.json({ orgId });
+  } catch (error) {
+    console.error("get orgId by email error:", error);
+    return res.status(500).json({ error: error.message });
+  }
+});
+
 /**
  * @openapi
  * /api/users:
@@ -319,27 +340,6 @@ router.delete("/users/:id", async (req, res) => {
     return res.json({ message: "User deleted successfully" });
   } catch (error) {
     console.error("delete user error:", error);
-    return res.status(500).json({ error: error.message });
-  }
-});
-
-router.get("/users/orgid-by-email", async (req, res) => {
-  try {
-    const email = req.query.email?.replace(/ /g, "+");
-
-    if (!email) {
-      return res.status(400).json({ error: "email is required" });
-    }
-
-    const orgId = await getOrgIdByEmail(email);
-
-    if (!orgId) {
-      return res.status(404).json({ error: "User not found" });
-    }
-
-    return res.json({ orgId });
-  } catch (error) {
-    console.error("get orgId by email error:", error);
     return res.status(500).json({ error: error.message });
   }
 });
