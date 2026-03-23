@@ -202,7 +202,7 @@ export async function getOrgIdByEmail(email) {
       return null;
     }
 
-    return rows[0].orgId;
+    return rows[0].org_id;
   } catch (error) {
     console.error("getOrgIdByEmail error:", error);
     throw error;
